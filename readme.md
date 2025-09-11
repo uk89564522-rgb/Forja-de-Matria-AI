@@ -1,6 +1,6 @@
-# Nexa AI PDF Data Extractor
+# Forja-de-Matria-AI PDF Data Extractor
 
-This project allows you to upload a PDF and extract specific data points using an AI backend (Google Gemini). You can specify which fields to extract (e.g., "Client Name, Session Date, Chief Complaint") and receive the results in a structured format.
+This llm agent allows you to upload a PDF and extract specific data points using an AI backend (Google Gemini). You can specify which fields to extract (e.g., "Client Name, Session Date, Chief Complaint") and receive the results in a structured format.
 
 ## Prerequisites
 
