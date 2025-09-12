@@ -39,7 +39,7 @@ function App() {
       const formData = new FormData();
       files.forEach(file => formData.append('files', file));
       formData.append('fields', fields.join(','));
-      const res = await fetch('http://localhost:5000/extract-multi-file-data', {
+      const res = await fetch('https://forja-de-matria-ai-iros.vercel.app/extract-multi-file-data', {
         method: 'POST',
         body: formData,
       });
