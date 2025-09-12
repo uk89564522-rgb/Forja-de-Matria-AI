@@ -5,7 +5,7 @@ function App() {
   const [files, setFiles] = useState<File[]>([]);
   const [pdfUrls, setPdfUrls] = useState<string[]>([]);
   const [extracted, setExtracted] = useState<string[]>([]);
-  const [loading, setLoading] = useState<boolean[]>([]);
+  //const [loading, setLoading] = useState<boolean[]>([]);
   const [error, setError] = useState<(string | null)[]>([]);
   const [fields, setFields] = useState<string[]>([]);
   const [fieldInput, setFieldInput] = useState<string>('');
@@ -17,13 +17,13 @@ function App() {
       setPdfUrls(selectedFiles.map(f => URL.createObjectURL(f)));
       setExtracted(Array(selectedFiles.length).fill(''));
       setError(Array(selectedFiles.length).fill(null));
-      setLoading(Array(selectedFiles.length).fill(false));
+     // setLoading(Array(selectedFiles.length).fill(false));
     } else {
       setFiles([]);
       setPdfUrls([]);
       setExtracted([]);
       setError(['Please select PDF files.']);
-      setLoading([]);
+     // setLoading([]);
     }
   };
 
