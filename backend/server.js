@@ -12,8 +12,17 @@ dotenv.config();
 const app = express();
 const port = 5000;
 
+// Define the URL of your deployed frontend
+const frontendURL = 'https://forja-de-matria-ai-htm4.vercel.app';
+
+// Set up CORS options
+const corsOptions = {
+  origin: frontendURL,
+};
+
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Multer setup for file uploads (memory storage)
