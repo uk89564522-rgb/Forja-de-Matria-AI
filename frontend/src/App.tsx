@@ -9,9 +9,22 @@ function App() {
   const [error, setError] = useState<(string | null)[]>([]);
   const [fields, setFields] = useState<string[]>([]);
   const [fieldInput, setFieldInput] = useState<string>('');
+    const [showLimitModal, setShowLimitModal] = useState(false);
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf');
+    // Calculate total size in bytes
+    const totalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
+    const maxSize = 4 * 1024 * 1024; // 4MB in bytes
+    if (totalSize > maxSize) {
+      setShowLimitModal(true);
+      setFiles([]);
+      setPdfUrls([]);
+      setExtracted([]);
+      setError(['Due to limited resources, we can\'t handle files above 4MB. Please upload up to 4MB of PDF files.']);
+      return;
+    }
     if (selectedFiles.length > 0) {
       setFiles(selectedFiles);
       setPdfUrls(selectedFiles.map(f => URL.createObjectURL(f)));
@@ -61,7 +74,23 @@ function App() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <>
+      {showLimitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center relative animate-fade-in">
+            <h2 className="text-xl font-bold text-red-600 mb-4">Upload Limit Exceeded</h2>
+            <p className="text-gray-700 mb-6">Due to limited resources, we can't handle files above <span className="font-semibold">4MB</span>.<br/>Please upload up to 4MB of PDF files.</p>
+            <button
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors duration-200"
+              onClick={() => setShowLimitModal(false)}
+              autoFocus
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
         <div className="text-center mb-8">
@@ -327,6 +356,7 @@ function App() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
