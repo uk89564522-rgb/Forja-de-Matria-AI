@@ -11,7 +11,9 @@ const { GoogleGenAI } = require("@google/genai");
 dotenv.config();
 const app = express();
 const port = 5000;
-
+app.use(express.json({ limit: '4.5mb' }));
+// Increase the limit for URL-encoded payloads
+app.use(express.urlencoded({ limit: '4.5mb', extended: true }));
 // Define the URL of your deployed frontend
 const frontendURL = 'https://forja-de-matria-ai-htm4.vercel.app';
 
