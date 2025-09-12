@@ -24,6 +24,11 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Route: Extract text from PDF and process with Google Gemini (GoogleGenAI)
+const ai = new GoogleGenAI({
+    apiKey: process.env.GENAI_API_KEY
+});
+
 // (removed accidental top-level prompt declaration)
 // Route: Extract text from multiple PDFs and process with Google Gemini (GoogleGenAI)
 app.post("/extract-multi-file-data", upload.array("files"), async (req, res) => {
@@ -180,9 +185,14 @@ app.post("/extract", upload.single("file"), async (req, res) => {
   }
 });
 
-// Route: Extract text from PDF and process with Google Gemini (GoogleGenAI)
-const ai = new GoogleGenAI({
-    apiKey: process.env.GENAI_API_KEY
+
+
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'UP',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Start server
