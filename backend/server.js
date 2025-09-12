@@ -182,7 +182,7 @@ app.post("/extract", upload.single("file"), async (req, res) => {
 
 // Route: Extract text from PDF and process with Google Gemini (GoogleGenAI)
 const ai = new GoogleGenAI({
-    apiKey: "AIzaSyBmeVmC_utFE_va7pEij4-kqGKJQUbohwg"
+    apiKey: process.env.GENAI_API_KEY
 });
 
 // Start server
