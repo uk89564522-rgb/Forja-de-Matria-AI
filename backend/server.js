@@ -15,7 +15,7 @@ app.use(express.json({ limit: '4.5mb' }));
 // Increase the limit for URL-encoded payloads
 app.use(express.urlencoded({ limit: '4.5mb', extended: true }));
 // Define the URL of your deployed frontend
-const frontendURL = 'https://forja-de-matria-ai-htm4.vercel.app';
+const frontendURL = 'http://localhost:5173';
 
 // Set up CORS options
 const corsOptions = {
