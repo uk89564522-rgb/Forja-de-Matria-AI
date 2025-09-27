@@ -10,6 +10,8 @@ function App() {
   const [fields, setFields] = useState<string[]>([]);
   const [fieldInput, setFieldInput] = useState<string>('');
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [llmModel, setLlmModel] = useState('gemini');
+  const [userApiKey, setUserApiKey] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf');
@@ -51,6 +53,8 @@ function App() {
       const formData = new FormData();
       files.forEach(file => formData.append('files', file));
       formData.append('fields', fields.join(','));
+      formData.append('llmModel', llmModel);
+      formData.append('apiKey', userApiKey);
       const res = await fetch('http://localhost:5000/extract-multi-file-data', {
         method: 'POST',
         body: formData,
@@ -207,6 +211,35 @@ function App() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Press Enter or Comma to add multiple fields.</p>
+              </div>
+
+              {/* LLM Model Selector and API Key Input */}
+              <div className="mt-6 flex flex-col gap-3">
+                <label className="font-medium text-gray-700">
+                  Choose LLM Model:
+                  <select
+                    value={llmModel}
+                    onChange={e => setLlmModel(e.target.value)}
+                    className="ml-2 px-2 py-1 rounded border border-gray-300"
+                  >
+                    <option value="gemini">Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="grok">Grok</option>
+                    <option value="deepseek">Deepseek</option>
+                    <option value="claude">Claude</option>
+                    <option value="kimi">KIMI</option>
+                  </select>
+                </label>
+                <label className="font-medium text-gray-700">
+                  API Key:
+                  <input
+                    type="password"
+                    value={userApiKey}
+                    onChange={e => setUserApiKey(e.target.value)}
+                    placeholder="Enter your API key"
+                    className="ml-2 px-2 py-1 rounded border border-gray-300 w-72"
+                  />
+                </label>
               </div>
 
               {files.length > 0 && (
