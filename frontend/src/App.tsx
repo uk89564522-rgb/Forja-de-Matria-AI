@@ -1,6 +1,16 @@
 import { useState } from 'react';
 import { Upload, FileText, Download, AlertCircle, CheckCircle2 } from 'lucide-react';
 
+const availableSections = [
+  'Full Paper',
+  'Abstract',
+  'Introduction',
+  'Methodology',
+  'Results',
+  'Discussion',
+  'Conclusion',
+];
+
 function App() {
   const [files, setFiles] = useState<File[]>([]);
   const [pdfUrls, setPdfUrls] = useState<string[]>([]);
@@ -12,20 +22,39 @@ function App() {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [llmModel, setLlmModel] = useState('gemini');
   const [userApiKey, setUserApiKey] = useState('');
+  const [combinedCsv, setCombinedCsv] = useState<string>('');
+  const [extracting, setExtracting] = useState(false);
+
+  // NEW: Section selection state
+  const [selectedSections, setSelectedSections] = useState<string[]>(['Full Paper']);
+
+  // Section selection handler
+  const handleSectionSelect = (section: string) => {
+    if (section === 'Full Paper') {
+      setSelectedSections(['Full Paper']);
+    } else if (selectedSections.includes('Full Paper')) {
+      setSelectedSections([section]);
+    } else if (selectedSections.includes(section)) {
+      const updated = selectedSections.filter(s => s !== section);
+      setSelectedSections(updated.length === 0 ? ['Full Paper'] : updated);
+    } else {
+      setSelectedSections([...selectedSections, section]);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf');
     // Calculate total size in bytes
     const totalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
-    const maxSize = 4 * 1024 * 1024; // 4MB in bytes
-    if (totalSize > maxSize) {
-      setShowLimitModal(true);
-      setFiles([]);
-      setPdfUrls([]);
-      setExtracted([]);
-      setError(['Due to limited resources, we can\'t handle files above 4MB. Please upload up to 4MB of PDF files.']);
-      return;
-    }
+    // const maxSize = 4 * 1024 * 1024; // 4MB in bytes
+    // if (totalSize > maxSize) {
+    //   setShowLimitModal(true);
+    //   setFiles([]);
+    //   setPdfUrls([]);
+    //   setExtracted([]);
+    //   setError(['Due to limited resources, we can\'t handle files above 4MB. Please upload up to 4MB of PDF files.']);
+    //   return;
+    // }
     if (selectedFiles.length > 0) {
       setFiles(selectedFiles);
       setPdfUrls(selectedFiles.map(f => URL.createObjectURL(f)));
@@ -39,8 +68,6 @@ function App() {
     }
   };
 
-  const [combinedCsv, setCombinedCsv] = useState<string>('');
-  const [extracting, setExtracting] = useState(false);
   const handleExtractAll = async () => {
     if (!files.length) return;
     setExtracting(true);
@@ -55,11 +82,19 @@ function App() {
       formData.append('fields', fields.join(','));
       formData.append('llmModel', llmModel);
       formData.append('apiKey', userApiKey);
+      // NEW: send selectedSections as stringified array
+      formData.append('sections', JSON.stringify(selectedSections));
       const res = await fetch('http://localhost:5000/extract-multi-file-data', {
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) throw new Error('Failed to extract PDFs');
+      if (!res.ok) {
+        const errData = await res.json();
+        setError(Array(files.length).fill(errData.error || 'Failed to extract PDFs'));
+        setLoading(Array(files.length).fill(false));
+        setExtracting(false);
+        return;
+      }
       const data = await res.json();
       if (data.results) {
         // Set extracted and error per file
@@ -76,6 +111,71 @@ function App() {
       setLoading(Array(files.length).fill(false));
     } finally {
       setExtracting(false);
+    }
+  };
+
+  const handleRetry = async (fileIdx: number) => {
+    setLoading(l => {
+      const arr = [...l];
+      arr[fileIdx] = true;
+      return arr;
+    });
+    setError(e => {
+      const arr = [...e];
+      arr[fileIdx] = null;
+      return arr;
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append('files', files[fileIdx]);
+      formData.append('fields', fields.join(','));
+      formData.append('llmModel', llmModel);
+      formData.append('apiKey', userApiKey);
+      // NEW: send selectedSections as stringified array
+      formData.append('sections', JSON.stringify(selectedSections));
+
+      const res = await fetch('http://localhost:5000/extract-multi-file-data', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Failed to extract PDF');
+      const data = await res.json();
+      if (data.results && data.results[0]) {
+        setExtracted(prev => {
+          const arr = [...prev];
+          arr[fileIdx] = data.results[0].result || '';
+          // After updating the extracted array, regenerate combined CSV locally:
+          const csvsWithFilenames = files
+            .map((file, idx) =>
+              arr[idx]
+                ? `Filename: ${file.name}\n${(arr[idx].split("```")[1] || arr[idx]).trim()}`
+                : null
+            )
+            .filter(Boolean)
+            .join('\n\n');
+          // Simple local CSV combiner: just concatenate, or you can improve this logic
+          setCombinedCsv(csvsWithFilenames);
+          return arr;
+        });
+        setError(prev => {
+          const arr = [...prev];
+          arr[fileIdx] = data.results[0].error || null;
+          return arr;
+        });
+      }
+    } catch (err) {
+      setError(prev => {
+        const arr = [...prev];
+        arr[fileIdx] = err instanceof Error ? err.message : 'Error extracting PDF';
+        return arr;
+      });
+    } finally {
+      setLoading(l => {
+        const arr = [...l];
+        arr[fileIdx] = false;
+        return arr;
+      });
     }
   };
 
@@ -242,6 +342,31 @@ function App() {
                 </label>
               </div>
 
+              {/* NEW: Section selection UI */}
+              <div className="mt-6">
+                <div className="font-medium text-gray-700 mb-2">Target Sections for Extraction</div>
+                <div className="flex flex-wrap gap-2">
+                  {availableSections.map(section => (
+                    <button
+                      type="button"
+                      key={section}
+                      onClick={() => handleSectionSelect(section)}
+                      className={`px-3 py-1 rounded-lg font-medium border transition-colors duration-150
+                        ${selectedSections.includes(section)
+                          ? 'bg-blue-600 text-white border-blue-700'
+                          : 'bg-gray-200 text-gray-700 border-gray-300 hover:bg-blue-100'
+                        }
+                      `}
+                    >
+                      {section}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select which sections of the paper to extract data from.
+                </p>
+              </div>
+
               {files.length > 0 && (
                 <div className="mt-6">
                   <button
@@ -335,7 +460,19 @@ function App() {
                   {files.map((f, idx) => (
                     <div key={f.name} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="font-semibold text-gray-800">{f.name}</div>
+                        <div>
+                          <div className="font-semibold text-gray-800">{f.name}</div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {selectedSections.map(section => (
+                              <span
+                                key={section}
+                                className="inline-block bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-medium"
+                              >
+                                {section}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                         <div className="flex gap-2">
                           {loading[idx] && (
                             <div className="flex items-center gap-2 text-blue-600 text-xs">
@@ -365,11 +502,16 @@ function App() {
                               Download CSV
                             </button>
                           )}
+                          {error[idx] && (
+                            <button
+                              onClick={() => handleRetry(idx)}
+                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition-colors duration-200 flex items-center gap-2 shadow-sm"
+                            >
+                              Retry
+                            </button>
+                          )}
                         </div>
                       </div>
-                      {error[idx] && (
-                        <div className="text-red-600 text-xs mb-2">{error[idx]}</div>
-                      )}
                       {extracted[idx] && !loading[idx] && (
                         <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono leading-relaxed max-h-[300px] overflow-y-auto bg-white rounded p-2 border">
                           {(extracted[idx].split("```")[1] || extracted[idx]).trim()}

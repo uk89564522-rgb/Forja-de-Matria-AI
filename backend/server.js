@@ -7,8 +7,8 @@ const dotenv = require("dotenv");
 dotenv.config();
 const app = express();
 const port = 5000;
-app.use(express.json({ limit: '4.5mb' }));
-app.use(express.urlencoded({ limit: '4.5mb', extended: true }));
+// app.use(express.json({ limit: '4.5mb' }));
+// app.use(express.urlencoded({ limit: '4.5mb', extended: true }));
 
 const frontendURL = 'http://localhost:5173';
 const corsOptions = { origin: frontendURL };
@@ -209,6 +209,8 @@ app.post("/extract-multi-file-data", upload.array("files"), async (req, res) => 
     } catch (combineErr) {
       console.error(`Error combining CSVs with ${llmModel}:`, combineErr);
       combinedCsv = '';
+      // Send error message to frontend
+      return res.status(429).json({ error: combineErr.message || "Rate limit or API key error" });
     }
 
     res.json({ results, combinedCsv });
