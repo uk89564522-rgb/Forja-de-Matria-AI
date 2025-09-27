@@ -5,7 +5,7 @@ function App() {
   const [files, setFiles] = useState<File[]>([]);
   const [pdfUrls, setPdfUrls] = useState<string[]>([]);
   const [extracted, setExtracted] = useState<string[]>([]);
-  //const [loading, setLoading] = useState<boolean[]>([]);
+  const [loading, setLoading] = useState<boolean[]>([]);
   const [error, setError] = useState<(string | null)[]>([]);
   const [fields, setFields] = useState<string[]>([]);
   const [fieldInput, setFieldInput] = useState<string>('');
@@ -48,6 +48,8 @@ function App() {
     setError([]);
     setExtracted(Array(files.length).fill(''));
     setCombinedCsv('');
+    setLoading(Array(files.length).fill(true)); // <-- Set all to loading
+
     try {
       const formData = new FormData();
       files.forEach(file => formData.append('files', file));
@@ -60,12 +62,14 @@ function App() {
       const data = await res.json();
       if (data.results) {
         setExtracted(data.results.map((r: any) => r.result || r.error || ''));
+        setLoading(Array(files.length).fill(false)); // <-- All done
       }
       if (data.combinedCsv) {
         setCombinedCsv(data.combinedCsv);
       }
     } catch (err) {
       setError([err instanceof Error ? err.message : 'Error extracting PDFs']);
+      setLoading(Array(files.length).fill(false)); // <-- All done (even on error)
     } finally {
       setExtracting(false);
     }
@@ -311,42 +315,44 @@ function App() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="font-semibold text-gray-800">{f.name}</div>
                         <div className="flex gap-2">
-                          {extracted[idx] && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  const csv = (extracted[idx].split("```")[1] || extracted[idx]).trim();
-                                  const blob = new Blob([csv], { type: 'text/csv' });
-                                  const url = URL.createObjectURL(blob);
-                                  const a = document.createElement('a');
-                                  a.href = url;
-                                  a.download = f.name.replace(/\.pdf$/i, '') + '-extracted.csv';
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  setTimeout(() => {
-                                    document.body.removeChild(a);
-                                    URL.revokeObjectURL(url);
-                                  }, 0);
-                                }}
-                                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors duration-200 flex items-center gap-2 shadow-sm"
-                              >
-                                <Download size={14} />
-                                Download CSV
-                              </button>
-                            </>
+                          {loading[idx] && (
+                            <div className="flex items-center gap-2 text-blue-600 text-xs">
+                              <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                              Extracting...
+                            </div>
+                          )}
+                          {extracted[idx] && !loading[idx] && (
+                            <button
+                              onClick={() => {
+                                const csv = (extracted[idx].split("```")[1] || extracted[idx]).trim();
+                                const blob = new Blob([csv], { type: 'text/csv' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = f.name.replace(/\.pdf$/i, '') + '-extracted.csv';
+                                document.body.appendChild(a);
+                                a.click();
+                                setTimeout(() => {
+                                  document.body.removeChild(a);
+                                  URL.revokeObjectURL(url);
+                                }, 0);
+                              }}
+                              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors duration-200 flex items-center gap-2 shadow-sm"
+                            >
+                              <Download size={14} />
+                              Download CSV
+                            </button>
                           )}
                         </div>
                       </div>
                       {error[idx] && (
                         <div className="text-red-600 text-xs mb-2">{error[idx]}</div>
                       )}
-                      {extracted[idx]
-                        && (
-                          <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono leading-relaxed max-h-[300px] overflow-y-auto bg-white rounded p-2 border">
-                            {(extracted[idx].split("```")[1] || extracted[idx]).trim()}
-                          </pre>
-                        )
-                      }
+                      {extracted[idx] && !loading[idx] && (
+                        <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono leading-relaxed max-h-[300px] overflow-y-auto bg-white rounded p-2 border">
+                          {(extracted[idx].split("```")[1] || extracted[idx]).trim()}
+                        </pre>
+                      )}
                     </div>
                   ))}
                 </div>
