@@ -3,6 +3,7 @@ const multer = require("multer");
 const pdfParse = require("pdf-parse");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const axios = require('axios'); // Already installed
 
 dotenv.config();
 const app = express();
@@ -217,6 +218,58 @@ app.post("/extract-multi-file-data", upload.array("files"), async (req, res) => 
   } catch (err) {
     console.error("Error extracting multiple PDFs:", err);
     res.status(500).json({ error: "Failed to extract multiple PDFs" });
+  }
+});
+
+app.post('/semantic-section-search', upload.single('file'), async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!req.file || !query) {
+      return res.status(400).json({ error: 'File and query required.' });
+    }
+    const pdfData = await pdfParse(req.file.buffer);
+    const text = pdfData.text;
+    // Split into paragraphs (or pages, or sections)
+    const chunks = text.split(/\n\s*\n/).filter(p => p.trim().length > 40);
+
+    // Get embeddings for query and chunks (using OpenAI for example)
+    const openaiApiKey = req.body.apiKey || process.env.OPENAI_API_KEY;
+    const getEmbedding = async (input) => {
+      const resp = await axios.post(
+        'https://api.openai.com/v1/embeddings',
+        { input, model: 'text-embedding-3-small' },
+        { headers: { Authorization: `Bearer ${openaiApiKey}` } }
+      );
+      return resp.data.data[0].embedding;
+    };
+
+    const queryEmbedding = await getEmbedding(query);
+    const chunkEmbeddings = await Promise.all(chunks.map(getEmbedding));
+
+    // Compute cosine similarity
+    function cosine(a, b) {
+      let dot = 0, normA = 0, normB = 0;
+      for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+      }
+      return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    let bestIdx = 0, bestScore = -Infinity;
+    for (let i = 0; i < chunkEmbeddings.length; i++) {
+      const score = cosine(queryEmbedding, chunkEmbeddings[i]);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+
+    res.json({ section: chunks[bestIdx] });
+  } catch (err) {
+    console.error('Semantic search error:', err);
+    res.status(500).json({ error: 'Semantic search failed.' });
   }
 });
 

@@ -28,6 +28,11 @@ function App() {
   // NEW: Section selection state
   const [selectedSections, setSelectedSections] = useState<string[]>(['Full Paper']);
 
+  // NEW: Semantic search state
+  const [semanticQuery, setSemanticQuery] = useState('');
+  const [semanticResult, setSemanticResult] = useState<string | null>(null);
+  const [semanticLoading, setSemanticLoading] = useState(false);
+
   // Section selection handler
   const handleSectionSelect = (section: string) => {
     if (section === 'Full Paper') {
@@ -177,6 +182,26 @@ function App() {
         return arr;
       });
     }
+  };
+
+  const handleSemanticSearch = async () => {
+    if (!semanticQuery.trim() || files.length === 0) return;
+    setSemanticLoading(true);
+    setSemanticResult(null);
+    const formData = new FormData();
+    formData.append('file', files[0]); // For now, just use the first file
+    formData.append('query', semanticQuery);
+    const res = await fetch('http://localhost:5000/semantic-section-search', {
+      method: 'POST',
+      body: formData,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setSemanticResult(data.section || 'No relevant section found.');
+    } else {
+      setSemanticResult('No relevant section found.');
+    }
+    setSemanticLoading(false);
   };
 
   return (
@@ -342,7 +367,47 @@ function App() {
                 </label>
               </div>
 
-              {/* NEW: Section selection UI */}
+              {/* --- ADD SEMANTIC SECTION SEARCH HERE --- */}
+              <div className="mt-6">
+                <label className="font-medium text-gray-700 mb-2 block">Semantic Section Search</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={semanticQuery}
+                    onChange={e => setSemanticQuery(e.target.value)}
+                    placeholder="Describe the section you want (e.g. catalyst degradation)"
+                    className="px-3 py-2 rounded border border-gray-300 w-full"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSemanticSearch}
+                    className="px-4 py-2 bg-blue-600 text-white rounded font-medium"
+                    disabled={semanticLoading || !semanticQuery.trim() || files.length === 0}
+                  >
+                    {semanticLoading ? 'Searching...' : 'Find Section'}
+                  </button>
+                </div>
+                {semanticResult && (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900">
+                    <div className="font-semibold mb-1">Best Match:</div>
+                    <div>{semanticResult}</div>
+                    <button
+                      type="button"
+                      className="mt-2 px-3 py-1 bg-blue-700 text-white rounded text-xs"
+                      onClick={() => {
+                        if (!selectedSections.includes(semanticResult)) {
+                          setSelectedSections([...selectedSections, semanticResult]);
+                        }
+                      }}
+                    >
+                      Add to Extraction
+                    </button>
+                  </div>
+                )}
+              </div>
+              {/* --- END SEMANTIC SECTION SEARCH --- */}
+
+              {/* Target Sections for Extraction */}
               <div className="mt-6">
                 <div className="font-medium text-gray-700 mb-2">Target Sections for Extraction</div>
                 <div className="flex flex-wrap gap-2">
