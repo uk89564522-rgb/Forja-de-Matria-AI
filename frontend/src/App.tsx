@@ -9,8 +9,7 @@ function App() {
   const [error, setError] = useState<(string | null)[]>([]);
   const [fields, setFields] = useState<string[]>([]);
   const [fieldInput, setFieldInput] = useState<string>('');
-    const [showLimitModal, setShowLimitModal] = useState(false);
-
+  const [showLimitModal, setShowLimitModal] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf');
@@ -30,13 +29,11 @@ function App() {
       setPdfUrls(selectedFiles.map(f => URL.createObjectURL(f)));
       setExtracted(Array(selectedFiles.length).fill(''));
       setError(Array(selectedFiles.length).fill(null));
-     // setLoading(Array(selectedFiles.length).fill(false));
     } else {
       setFiles([]);
       setPdfUrls([]);
       setExtracted([]);
       setError(['Please select PDF files.']);
-     // setLoading([]);
     }
   };
 
@@ -45,10 +42,10 @@ function App() {
   const handleExtractAll = async () => {
     if (!files.length) return;
     setExtracting(true);
-    setError([]);
+    setError(Array(files.length).fill(null));
     setExtracted(Array(files.length).fill(''));
     setCombinedCsv('');
-    setLoading(Array(files.length).fill(true)); // <-- Set all to loading
+    setLoading(Array(files.length).fill(true));
 
     try {
       const formData = new FormData();
@@ -61,21 +58,22 @@ function App() {
       if (!res.ok) throw new Error('Failed to extract PDFs');
       const data = await res.json();
       if (data.results) {
-        setExtracted(data.results.map((r: any) => r.result || r.error || ''));
-        setLoading(Array(files.length).fill(false)); // <-- All done
+        // Set extracted and error per file
+        setExtracted(data.results.map((r: any) => r.result || ''));
+        setError(data.results.map((r: any) => r.error || null));
+        setLoading(Array(files.length).fill(false));
       }
       if (data.combinedCsv) {
         setCombinedCsv(data.combinedCsv);
       }
     } catch (err) {
-      setError([err instanceof Error ? err.message : 'Error extracting PDFs']);
-      setLoading(Array(files.length).fill(false)); // <-- All done (even on error)
+      // Set the same error for all files if the request itself failed
+      setError(Array(files.length).fill(err instanceof Error ? err.message : 'Error extracting PDFs'));
+      setLoading(Array(files.length).fill(false));
     } finally {
       setExtracting(false);
     }
   };
-
-
 
   return (
     <>
@@ -153,15 +151,6 @@ function App() {
                   )}
                 </label>
               </div>
-
-              {error && error.some(e => e) && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-                  <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
-                  <ul className="text-red-700">
-                    {error.map((e, i) => e && <li key={i}>{e}</li>)}
-                  </ul>
-                </div>
-              )}
 
               {/* Input for specifying fields/data points */}
               <div className="mt-6">
